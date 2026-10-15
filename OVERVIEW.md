@@ -1,96 +1,69 @@
-# ScopeWeaver (ARTEX) - Repository Overview
+# ScopeWeaver - Tổng quan Sản phẩm & Hướng dẫn Sử dụng
 
-Nền tảng tự khởi tạo và vận hành nghiên cứu an ninh mạng / kiểm thử xâm nhập hỗ trợ bởi AI (Autonomous AI penetration-testing system).
-
----
-
-## 1. Kiến trúc Tổng quan
-
-ScopeWeaver (`github.com/Autumn-27/artex`) được xây dựng theo mô hình **Monolith mô-đun hóa (Modular Monolith)** bằng Go. Dự án tích hợp backend daemon, engine lập kế hoạch và thực thi agent, HTTP MITM Proxy bắt giữ lưu lượng traffic, và giao diện người dùng Web UI (Next.js / shadcn/ui) được nhúng trực tiếp vào binary duy nhất thông qua `go:embed`.
-
-```
-                        +---------------------------------------+
-                        |  Web UI (Embedded Next.js / shadcn)   |
-                        +---------------------------------------+
-                                           | HTTP REST / SSE / WS
-                                           v
-+-----------------------+       +---------------------------------------+
-| External Agent        | ----> |         Server & API Layer            |
-| Adapters (Claude Code)|       |             (server/)                 |
-+-----------------------+       +---------------------------------------+
-                                    |                       |
-                                    v                       v
-                        +-----------------------+   +-------------------+
-                        |     Agent Engine      |   |   Database Layer  |
-                        |       (agent/)        |   |      (db/)        |
-                        +-----------------------+   +-------------------+
-                          /                   \
-                         v                     v
-            +-----------------------+   +-----------------------+
-            | LLM Pool & Failover   |   |    Tools & Skills     |
-            | (llmpool/ & llmrec/)  |   |   (tools/ & skills/)  |
-            +-----------------------+   +-----------------------+
-
-+-----------------------+       +---------------------------------------+
-|   MITM Traffic Proxy  | ----> |          Traffic Logging              |
-|      (intercept/)     |       |             (traffic/)                |
-+-----------------------+       +---------------------------------------+
-```
+*Ngày cập nhật: 15/10/2026*
 
 ---
 
-## 2. Các Thành phần chính (Components & Entry Points)
+## 1. ScopeWeaver là gì?
 
-- **CLI Entry Point (`cmd/artex/main.go`)**: Quản lý khởi động server, cờ lệnh (`-addr`, `-data`, `-proxy`), cấu hình hệ thống (`config/`), và cơ chế tự động nâng cấp (`selfupdate/`).
-- **HTTP Server & API Layer (`server/`)**: Cung cấp các REST API cho tác vụ, tài nguyên, phát hiện (findings), người dùng và cấu hình LLM. Quản lý việc truyền dữ liệu thời gian thực qua SSE và WebSocket.
-- **Agent Execution Engine (`agent/`)**:
-  - `Planner` (`agent/planner.go`): Lập kế hoạch và lộ trình xử lý tác vụ.
-  - `Worker` (`agent/worker.go`): Gọi các công cụ (tools), thực thi lệnh và thu thập kết quả.
-  - `Assembly` (`agent/assembly.go`): Tích hợp công cụ, prompts override, skills và MCP.
-  - `ChatAgent` & `MainAgent`: Xử lý luồng hội thoại và các lượt chạy tác vụ chính.
-- **Traffic Interception Proxy (`intercept/`)**: Proxy MITM dựa trên `go-mitmproxy`, hỗ trợ bắt giữ traffic HTTP/HTTPS, áp dụng bộ lọc DSL và ghi nhận dữ liệu lưu lượng.
-- **External Adapters (`adapters/agent/`)**: Adapter kết nối giao tiếp giữa các AI CLI bên ngoài (Claude Code, Codex, Pi) và ScopeWeaver API.
-- **LLM Provider Management (`llmpool/`, `llmrec/`)**: Quản lý danh sách nhà cung cấp LLM, chuỗi dự phòng (failover chain), và ghi nhận chi phí/lượt sử dụng token.
+**ScopeWeaver** là một hệ thống trung tâm điều khiển và nghiên cứu an ninh mạng tự động hóa tích hợp Trí tuệ Nhân tạo (AI). 
+
+Sản phẩm được thiết kế nhằm giúp các chuyên gia an ninh mạng, nhóm kiểm thử xâm nhập (Penetration Testers) và các nhà quản lý hệ thống tự động hóa việc phát hiện, khai thác và quản lý rủi ro an ninh cho các ứng dụng web và hạ tầng công nghệ thông tin.
 
 ---
 
-## 3. Quản lý Dữ liệu & Lưu trữ (Data Stores)
+## 2. Các Chức năng chính
 
-1. **PostgreSQL (`db/schema.sql`)**: Lưu trữ dữ liệu quan hệ chính của ứng dụng:
-   - Tác vụ (`tasks`), Loại tác vụ (`task_categories`), Bản mẫu (`task_templates`)
-   - Công ty & Phạm vi tài sản (`companies`, `assets`, `company_scope`)
-   - Cấu hình Agent & Prompts (`agents`, `agent_prompts`)
-   - Phát hiện an ninh & Bằng chứng (`findings`, `finding_assets`)
-   - Nhật ký sử dụng LLM (`llm_usage_logs`, `llm_profiles`)
-2. **SQLite (`modernc.org/sqlite`)**: Dùng cho dữ liệu tần suất cao hoặc lưu trữ phân tán ngắn hạn:
-   - Lịch sử hội thoại & transcript
-   - Lưu lượng traffic bắt được
-   - Minh chứng bằng chứng (evidence files)
+- **Tự động Lập Kế hoạch & Rà soát Lỗ hổng (Autonomous AI Security Testing)**:
+  - Cho phép người dùng nhập địa chỉ trang web hoặc hệ thống mục tiêu.
+  - Trí tuệ nhân tạo sẽ tự động phân tích cấu trúc trang web, lên danh sách các điểm cần kiểm tra và tự thực hiện các bước rà soát lỗ hổng an ninh mạng.
 
----
+- **Quản lý & Phân loại Phát hiện An ninh (Findings Management)**:
+  - Tự động ghi nhận các lỗ hổng tìm thấy kèm bằng chứng minh họa cụ thể (PoC).
+  - Phân loại mức độ nghiêm trọng (Nghiêm trọng, Cao, Trung bình, Thấp).
+  - Cung cấp tính năng **Đào sâu (Deepen)** để yêu cầu AI tiếp tục kiểm thử nâng cao và tính năng **Tái kiểm thử (Retest)** để xác minh lỗ hổng đã được sửa hay chưa.
 
-## 4. Luồng Xử lý Chính (Key Workflows)
+- **Soi & Ghi nhận Lưu lượng Mạng (Traffic Inspection Proxy)**:
+  - Tích hợp trạm trung gian bắt giữ và ghi lại toàn bộ dữ liệu trao đổi giữa công cụ kiểm thử và trang web mục tiêu.
+  - Cho phép người dùng trực tiếp kiểm tra nội dung dữ liệu gửi đi/nhận về và đính kèm vào báo cáo lỗ hổng.
 
-### Luồng Thực thi Tác vụ (Task Execution Workflow)
-1. Yêu cầu tạo tác vụ được gửi đến REST API `POST /api/tasks` (`server/server.go`).
-2. Tác vụ được kích hoạt qua `Engine.StartTask` (`server/engine.go`).
-3. Engine gán bộ đôi `Planner` và `Worker` phù hợp cho tác vụ.
-4. `Planner` sinh lộ trình công việc; `Worker` thực thi chuỗi công cụ trong `tools/`.
-5. Kết quả quan sát và lỗ hổng được ghi nhận tự động vào database qua `finding_recorder.go`.
-6. Trạng thái và tiến độ được broadcast liên tục về giao diện Web UI.
+- **Kiểm soát Phạm vi An toàn (Asset & Scope Guard)**:
+  - Quản lý danh sách các tên miền, địa chỉ IP và ứng dụng được phép kiểm thử.
+  - Đảm bảo AI chỉ thực hiện rà soát trong đúng phạm vi cho phép, tuyệt đối không quét các mục tiêu nằm ngoài hệ thống.
 
-### Luồng Ghi nhận Traffic (Traffic Interception Workflow)
-1. Lưu lượng HTTP/HTTPS đi qua MITM proxy (`intercept/`).
-2. Proxy kiểm tra quy tắc DSL (`db/asset_dsl.go`).
-3. Dữ liệu request/response được ghi vào file SQLite (`traffic/`).
-4. Các domain/endpoint thuộc phạm vi được cấp phép sẽ tự động được thêm vào bảng tài sản (`db/assets.go`).
+- **Tương tác & Chỉ đạo Thời gian thực (Live Agent Chat & Hints)**:
+  - Cung cấp khung trò chuyện trực tiếp để người dùng có thể gửi thêm gợi ý, hướng dẫn hoặc thay đổi mục tiêu kiểm thử trong khi AI đang chạy.
+
+- **Xuất Báo cáo Tự động (Automated Reporting)**:
+  - Tổng hợp toàn bộ danh sách lỗ hổng, mức độ rủi ro và các khuyến nghị khắc phục thành báo cáo hoàn chỉnh.
 
 ---
 
-## 5. Các Thư viện Phụ thuộc Chính
+## 3. Đối tượng Sử dụng chính
 
-- **CSDL**: `github.com/jackc/pgx/v5` (PostgreSQL), `modernc.org/sqlite` (SQLite).
-- **Proxy**: `github.com/lqqyt2423/go-mitmproxy`.
-- **LLM/Tools Framework**: `github.com/Autumn-27/norma`.
-- **Auth**: `github.com/golang-jwt/jwt/v5`.
-- **DNS**: `github.com/miekg/dns`, `github.com/projectdiscovery/dnsx`.
+1. **Chuyên viên An ninh mạng / Penetration Testers**: Tự động hóa các bước rà soát ban đầu để tập trung vào các kịch bản tấn công phức tạp.
+2. **Đội ngũ Phát triển & Quản trị Hệ thống (DevSecOps / SysAdmins)**: Đánh giá an ninh cho ứng dụng nội bộ trước khi ra mắt.
+3. **Quản lý An toàn Thông tin**: Cần cái nhìn tổng quan về số lượng lỗ hổng, mức độ rủi ro và tiến độ khắc phục.
+
+---
+
+## 4. Luồng Sử dụng Thực tế
+
+1. **Khai báo Mục tiêu Kiểm thử**:
+   Người dùng tạo một mục tiêu mới (ví dụ: `http://localhost:9999`) và đăng ký vào phạm vi cho phép kiểm thử.
+
+2. **Khởi chạy Tác vụ Rà soát**:
+   Tạo một Tác vụ (Task) mới và giao mục tiêu cho AI. Hệ thống AI sẽ tự động phân phân tích ứng dụng và thực hiện các thử nghiệm an ninh.
+
+3. **Theo dõi Tiến độ & Xem Lỗ hổng**:
+   Người dùng theo dõi tiến trình kiểm thử trực tiếp trên đồ thị hình cây hoặc nhật ký hoạt động. Khi phát hiện lỗ hổng (như lỗi chèn tệp LFI hay SQL Injection), thông tin chi tiết kèm bằng chứng sẽ xuất hiện ngay trong mục Phát hiện (Findings).
+
+4. **Tái kiểm thử & Xuất Báo cáo**:
+   Sau khi lập trình viên sửa lỗi, người dùng nhấn nút Tái kiểm thử (Retest) để AI xác nhận lại, sau đó xuất báo cáo tổng hợp kết quả.
+
+---
+
+## 5. Giới hạn & Lưu ý khi Sử dụng
+
+- Hệ thống cần được kết nối với dịch vụ AI (Gemini, OpenAI hoặc Anthropic) thông qua API Key để thực hiện suy luận.
+- Tính năng kiểm thử tự động yêu cầu mục tiêu kiểm thử phải hoạt động và có thể kết nối mạng được từ máy chủ chạy ScopeWeaver.
